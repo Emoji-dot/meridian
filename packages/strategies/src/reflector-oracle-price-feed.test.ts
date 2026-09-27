@@ -71,7 +71,7 @@ class MockReflectorOracleClient implements ReflectorOracleClient {
     this.lastTimestampResult = result;
   }
 
-  async lastprice(asset: ReflectorAsset): Promise<ReflectorPriceData | null> {
+  async lastprice(_asset: ReflectorAsset): Promise<ReflectorPriceData | null> {
     return Promise.resolve(this.lastpriceResult);
   }
 
@@ -86,12 +86,11 @@ class MockReflectorOracleClient implements ReflectorOracleClient {
 
 describe("createReflectorOraclePriceFeed", () => {
   let mockClient: MockReflectorOracleClient;
-  let mockDateNow: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mockClient = new MockReflectorOracleClient();
     // Mock Date.now to return a consistent time for staleness tests
-    mockDateNow = vi.spyOn(Date, "now").mockReturnValue(1640995800000); // 10 minutes after default timestamp
+    vi.spyOn(Date, "now").mockReturnValue(1640995800000); // 10 minutes after default timestamp
   });
 
   afterEach(() => {
