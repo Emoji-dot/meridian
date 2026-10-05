@@ -354,6 +354,12 @@ importers:
       '@meridian/shared':
         specifier: workspace:*
         version: link:../shared
+      '@meridian/stellar-sdk-helpers':
+        specifier: workspace:*
+        version: link:../stellar-sdk-helpers
+      '@stellar/stellar-sdk':
+        specifier: ^14.6.1
+        version: 14.6.1
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 5.0.2

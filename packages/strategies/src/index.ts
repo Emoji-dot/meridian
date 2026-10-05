@@ -13,3 +13,4 @@ export const STRATEGY_ENGINE: StrategyEngine = {
 export * from "./types";
 export * from "./feeds";
 export * from "./risk-metrics";
+export * from "./reflector-oracle-price-feed";
