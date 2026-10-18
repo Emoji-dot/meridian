@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import {
   test,
   expect,
@@ -19,7 +20,43 @@ const FAKE_POSITION = {
   entryTime: Math.floor(Date.now() / 1000) - 86_400,
 };
 
+// The withdraw tab only renders once the app has resolved the recommended
+// vault, so every test in this file needs /api/v1/vaults to answer before the
+// default 5 s assertion timeout. That endpoint hits real testnet RPC on every
+// request (fetchTestnetVaults is never cached) and is flaky in CI (#535), which
+// is why vault-list.spec.ts stubs it the same way. Its on-chain reads run
+// sequentially with a 10 s budget each, so a cold runner can blow the timeout
+// and leave the submit button below unrendered.
+async function stubRecommendedVault(page: Page): Promise<void> {
+  await page.route("**/api/v1/vaults", (route) =>
+    route.fulfill({
+      json: {
+        vaults: [
+          {
+            id: "meridian-usdc",
+            protocol: "meridian",
+            asset: "USDC",
+            name: "Meridian",
+            label: "USDC Vault",
+            apy: 5.25,
+            tvl: 1234567,
+            userBalance: 0,
+            riskLevel: "safe",
+          },
+        ],
+        recommendedVaultId: "meridian-usdc",
+        updatedAt: new Date().toISOString(),
+        cached: false,
+      },
+    })
+  );
+}
+
 test.describe("withdraw", () => {
+  test.beforeEach(async ({ page }) => {
+    await stubRecommendedVault(page);
+  });
+
   test("builds a real withdraw transaction against the real API", async ({
     page,
     mockWallet,
