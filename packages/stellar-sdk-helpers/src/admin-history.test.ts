@@ -355,6 +355,45 @@ describe("getAdminActionHistory", () => {
     expect(actions.map((a) => a.id)).toEqual(["op1", "op2"]);
   });
 
+  it("bounds every paged request with an AbortSignal", async () => {
+    const page1 = operationsPage(
+      [
+        {
+          id: "op1",
+          transaction_hash: "HASH1",
+          created_at: "2026-08-27T20:00:00Z",
+          source_account: "GADMIN",
+          parameters: [
+            { type: "Address", value: VAULT_ADDRESS_B64 },
+            { type: "Sym", value: SET_PAUSED_SYM_B64 },
+          ],
+        },
+      ],
+      "https://horizon-testnet.stellar.org/operations?cursor=PAGE2"
+    );
+    const page2 = operationsPage([]);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(page1 as never)
+      .mockResolvedValueOnce(page2 as never);
+
+    await getAdminActionHistory(network, VAULT_ID);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    for (const call of vi.mocked(fetch).mock.calls) {
+      expect(call[1]).toMatchObject({ signal: expect.any(AbortSignal) });
+    }
+  });
+
+  it("fails fast when a Horizon page hangs instead of waiting forever", async () => {
+    vi.mocked(fetch).mockImplementationOnce(
+      () => new Promise(() => {}) as never
+    );
+
+    await expect(
+      getAdminActionHistory(network, VAULT_ID, { timeoutMs: 5 })
+    ).rejects.toThrow(/Horizon operations timed out after 5ms/);
+  });
+
   it("stops paging once the requested limit is reached", async () => {
     const page1 = operationsPage(
       [
