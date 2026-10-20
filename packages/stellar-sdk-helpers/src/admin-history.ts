@@ -138,14 +138,20 @@ export function summarizeAction(
 export interface GetAdminActionHistoryOptions {
   limit?: number;
   maxPages?: number;
-  /** Per-request timeout for each Horizon page. Defaults to 10 s. */
-  timeoutMs?: number;
+  /**
+   * Timeout for a single Horizon page request. Defaults to 10 s.
+   *
+   * This bounds one page, not the whole scan: a scan of N pages can take up to
+   * N x pageTimeoutMs, with `maxPages` (default 20) as the outer bound. Named
+   * explicitly so it cannot be confused with a whole-scan budget.
+   */
+  pageTimeoutMs?: number;
 }
 
 // Matches the other HTTP call sites in this package (keeper-state.ts,
 // position-snapshots.ts, rate-sources.ts): without a bound, one hung Horizon
 // request stalls the whole paged scan instead of failing fast.
-const DEFAULT_HORIZON_TIMEOUT_MS = 10_000;
+const DEFAULT_HORIZON_PAGE_TIMEOUT_MS = 10_000;
 
 export async function getAdminActionHistory(
   network: StellarNetwork,
@@ -153,7 +159,7 @@ export async function getAdminActionHistory(
   options: GetAdminActionHistoryOptions = {}
 ): Promise<AdminAction[]> {
   const { limit = 50, maxPages = 20 } = options;
-  const timeoutMs = options.timeoutMs ?? DEFAULT_HORIZON_TIMEOUT_MS;
+  const timeoutMs = options.pageTimeoutMs ?? DEFAULT_HORIZON_PAGE_TIMEOUT_MS;
   const { baseUrl } = buildHorizonServer(network.network);
   const actions: AdminAction[] = [];
   let cursor: string | undefined;

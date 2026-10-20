@@ -390,7 +390,7 @@ describe("getAdminActionHistory", () => {
     );
 
     await expect(
-      getAdminActionHistory(network, VAULT_ID, { timeoutMs: 5 })
+      getAdminActionHistory(network, VAULT_ID, { pageTimeoutMs: 5 })
     ).rejects.toThrow(/Horizon operations timed out after 5ms/);
   });
 
