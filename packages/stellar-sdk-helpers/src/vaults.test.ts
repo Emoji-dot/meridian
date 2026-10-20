@@ -22,7 +22,12 @@ vi.mock("./vault-cache", () => ({
 
 import { simulateView } from "./tx";
 import { toBigInt } from "./internal";
-import { fetchAllVaults, clearVaultCache, isVaultCacheWarm } from "./vaults";
+import {
+  fetchAllVaults,
+  fetchVaultsWithCache,
+  clearVaultCache,
+  isVaultCacheWarm,
+} from "./vaults";
 import { getCachedVaults, setCachedVaults } from "./vault-cache";
 import { KNOWN_POOLS } from "./known-pools";
 
@@ -113,6 +118,35 @@ describe("isVaultCacheWarm", () => {
   });
 });
 
+describe("fetchVaultsWithCache", () => {
+  beforeEach(() => {
+    clearVaultCache();
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    clearVaultCache();
+  });
+
+  it("returns cached: false after fresh mainnet fetch and cached: true on subsequent warm call", async () => {
+    mockAdapterDiscovery({ totalAssets: 10_000_000_000n, protocol: "none" });
+    stubPools([llamaPool()]);
+
+    const first = await fetchVaultsWithCache("mainnet");
+    expect(first.cached).toBe(false);
+
+    const second = await fetchVaultsWithCache("mainnet");
+    expect(second.cached).toBe(true);
+  });
+
+  it("returns cached: false on testnet calls", async () => {
+    mockAdapterDiscovery({ totalAssets: 10_000_000_000n, protocol: "none" });
+    const res = await fetchVaultsWithCache("testnet");
+    expect(res.cached).toBe(false);
+  });
+});
+
 describe("fetchAllVaults (mainnet)", () => {
   beforeEach(() => {
     clearVaultCache();
@@ -191,6 +225,22 @@ describe("fetchAllVaults (mainnet)", () => {
     expect(simulateView).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
     expect(setCachedVaults).not.toHaveBeenCalled();
+  });
+
+  it("reports cached: true via fetchVaultsWithCache on shared L2 cache hit", async () => {
+    stubPools([llamaPool()]);
+    const first = await fetchAllVaults("mainnet");
+    clearVaultCache();
+    vi.clearAllMocks();
+    vi.mocked(getCachedVaults).mockResolvedValueOnce(first);
+
+    const res = await fetchVaultsWithCache("mainnet");
+    expect(res.cached).toBe(true);
+    expect(res.vaults).toBe(first);
+    expect(isVaultCacheWarm()).toBe(true);
+    expect(getCachedVaults).toHaveBeenCalledExactlyOnceWith("mainnet");
+    expect(simulateView).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("serves stale cache instead of dropping third-party pools when DeFiLlama returns no pools", async () => {
